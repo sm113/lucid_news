@@ -6,6 +6,7 @@ Includes automatic scheduled updates for mobile deployment.
 """
 
 from flask import Flask, render_template, jsonify, request, make_response
+from flask_cors import CORS
 from datetime import datetime
 import threading
 import os
@@ -28,6 +29,7 @@ import database
 # =============================================================================
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for Capacitor mobile app
 
 # =============================================================================
 # SCHEDULED TASKS (APScheduler)
