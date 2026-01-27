@@ -2,17 +2,32 @@
 News Bench - Database Module
 ============================
 SQLite storage for articles and synthesized stories.
+Supports both local SQLite and Turso (hosted SQLite) for production.
 """
 
 import sqlite3
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 from contextlib import contextmanager
 
 # =============================================================================
-# DATABASE CONFIG (can override config.py settings here)
+# DATABASE CONFIG
 # =============================================================================
 from config import DATABASE_PATH
+
+# Turso configuration (set these env vars for production)
+TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
+TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
+
+# Use Turso if configured, otherwise local SQLite
+USE_TURSO = bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
+
+if USE_TURSO:
+    import libsql_experimental as libsql
+    print(f"[DATABASE] Using Turso: {TURSO_DATABASE_URL[:50]}...")
+else:
+    print(f"[DATABASE] Using local SQLite: {DATABASE_PATH}")
 
 # =============================================================================
 # CONNECTION MANAGEMENT
@@ -21,9 +36,13 @@ from config import DATABASE_PATH
 @contextmanager
 def get_connection():
     """Context manager for database connections."""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+    if USE_TURSO:
+        conn = libsql.connect(database=TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+        conn.row_factory = sqlite3.Row
+    else:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
         conn.commit()

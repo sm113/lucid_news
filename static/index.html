@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>News Bench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --void: #0c0e12;
+      --void-light: #11141a;
+      --line: rgba(255, 255, 255, 0.08);
+      --text-high: rgba(255, 255, 255, 0.87);
+      --text-low: rgba(255, 255, 255, 0.38);
+      --signal: #00ff88;
+      --font-display: 'Space Grotesk', -apple-system, sans-serif;
+      --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background: var(--void);
+      color: var(--text-high);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      padding-top: max(20px, env(safe-area-inset-top));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 120% 60% at 50% -10%, rgba(30, 40, 60, 0.4), transparent 50%),
+        radial-gradient(ellipse 80% 50% at 0% 100%, rgba(20, 30, 50, 0.3), transparent 40%),
+        linear-gradient(180deg, var(--void) 0%, var(--void-light) 100%);
+      z-index: -2;
+    }
+
+    /* Scan lines */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, 0.15) 3px,
+        rgba(0, 0, 0, 0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0.4;
+    }
+
+    /* Corner frame */
+    .frame {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top));
+      left: max(16px, env(safe-area-inset-left));
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .container {
+      text-align: center;
+      z-index: 5;
+    }
+
+    .logo-text {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-low);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 42px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .tagline {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-low);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 64px;
+    }
+
+    .loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .loader-bar {
+      width: 120px;
+      height: 1px;
+      background: var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loader-bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -40px;
+      width: 40px;
+      height: 100%;
+      background: var(--signal);
+      animation: slide 1.2s ease-in-out infinite;
+    }
+
+    @keyframes slide {
+      0% { left: -40px; }
+      100% { left: 120px; }
+    }
+
+    .status {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-low);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .status::before {
+      content: '[ ';
+      color: var(--signal);
+    }
+
+    .status::after {
+      content: ' ]';
+      color: var(--signal);
+    }
+
+    /* Cached headlines preview */
+    .cached-preview {
+      margin-top: 48px;
+      max-width: 320px;
+      text-align: left;
+    }
+
+    .cached-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-low);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+
+    .cached-headline {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--text-high);
+      line-height: 1.4;
+      margin-bottom: 12px;
+      padding-left: 12px;
+      border-left: 1px solid var(--line);
+      opacity: 0;
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    .cached-headline:nth-child(2) { animation-delay: 0.1s; }
+    .cached-headline:nth-child(3) { animation-delay: 0.2s; }
+    .cached-headline:nth-child(4) { animation-delay: 0.3s; }
+
+    @keyframes fadeIn {
+      to { opacity: 0.7; }
+    }
+
+    /* Status indicator dot */
+    .signal-dot {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      right: max(24px, env(safe-area-inset-right));
+      width: 6px;
+      height: 6px;
+      background: var(--signal);
+      animation: pulse 2s ease-in-out infinite;
+      z-index: 5;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* System time display */
+    .sys-time {
+      position: fixed;
+      top: max(24px, env(safe-area-inset-top));
+      right: max(24px, env(safe-area-inset-right));
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-low);
+      letter-spacing: 0.1em;
+      z-index: 5;
+    }
+
+    .cache-age {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      left: max(24px, env(safe-area-inset-left));
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text-low);
+      letter-spacing: 0.05em;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="signal-dot"></div>
+  <div class="sys-time" id="time"></div>
+  <div class="cache-age" id="cacheAge"></div>
+
+  <div class="container">
+    <div class="logo-text">News / Bench</div>
+    <h1>Initializing</h1>
+    <p class="tagline">AI-Powered News Synthesis</p>
+    <div class="loader">
+      <div class="loader-bar"></div>
+    </div>
+    <p class="status" id="status">Connecting to server</p>
+
+    <div class="cached-preview" id="cachedPreview" style="display: none;">
+      <div class="cached-label">Previously loaded</div>
+    </div>
+  </div>
+
+  <script>
+    const SERVER_URL = 'https://news-bench.onrender.com';
+    const HEALTH_ENDPOINT = '/api/health';
+    const STORIES_ENDPOINT = '/api/stories?limit=20';
+    const CACHE_KEY = 'newsbench_stories_cache';
+    const CACHE_TIME_KEY = 'newsbench_cache_time';
+
+    const statusEl = document.getElementById('status');
+    const timeEl = document.getElementById('time');
+    const cacheAgeEl = document.getElementById('cacheAge');
+    const cachedPreviewEl = document.getElementById('cachedPreview');
+
+    // Update system time
+    function updateTime() {
+      const now = new Date();
+      timeEl.textContent = now.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Show cached headlines while loading
+    function showCachedPreview() {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY);
+        const cacheTime = localStorage.getItem(CACHE_TIME_KEY);
+
+        if (cached && cacheTime) {
+          const stories = JSON.parse(cached);
+          const age = Date.now() - parseInt(cacheTime);
+          const ageMinutes = Math.floor(age / 60000);
+          const ageHours = Math.floor(ageMinutes / 60);
+
+          // Show cache age
+          if (ageHours > 0) {
+            cacheAgeEl.textContent = `Cache: ${ageHours}h ago`;
+          } else {
+            cacheAgeEl.textContent = `Cache: ${ageMinutes}m ago`;
+          }
+
+          // Show first 3 headlines
+          if (stories.length > 0) {
+            cachedPreviewEl.style.display = 'block';
+            stories.slice(0, 3).forEach(story => {
+              const div = document.createElement('div');
+              div.className = 'cached-headline';
+              div.textContent = story.synthesized_headline;
+              cachedPreviewEl.appendChild(div);
+            });
+          }
+        }
+      } catch (e) {
+        // Cache read failed, ignore
+      }
+    }
+
+    // Status messages
+    const messages = [
+      'Connecting to server',
+      'Awaiting response',
+      'Server spinning up',
+      'Loading news data',
+      'Almost ready'
+    ];
+    let msgIndex = 0;
+
+    setInterval(() => {
+      msgIndex = (msgIndex + 1) % messages.length;
+      statusEl.textContent = messages[msgIndex];
+    }, 3000);
+
+    // Cache stories for offline/fast loading
+    async function cacheStories() {
+      try {
+        const response = await fetch(SERVER_URL + STORIES_ENDPOINT, {
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data.stories));
+          localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+        }
+      } catch (e) {
+        // Cache failed, ignore
+      }
+    }
+
+    async function checkServer() {
+      try {
+        const response = await fetch(SERVER_URL + HEALTH_ENDPOINT, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          statusEl.textContent = 'Connected';
+
+          // Cache stories in background before redirect
+          cacheStories();
+
+          setTimeout(() => {
+            window.location.href = SERVER_URL;
+          }, 500);
+        } else {
+          setTimeout(checkServer, 2000);
+        }
+      } catch (e) {
+        setTimeout(checkServer, 2000);
+      }
+    }
+
+    // Show cached content while loading
+    showCachedPreview();
+
+    // Start checking server
+    checkServer();
+
+    // Background refresh - ping server periodically to keep warm
+    // This runs when app is open but also sets up for next launch
+    setInterval(() => {
+      fetch(SERVER_URL + HEALTH_ENDPOINT, { method: 'GET', cache: 'no-store' }).catch(() => {});
+    }, 10 * 60 * 1000); // Every 10 minutes
+  </script>
+</body>
+</html>

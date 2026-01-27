@@ -1,0 +1,162 @@
+NEWS BENCH - UI DOCUMENTATION
+==============================
+Complete breakdown of all UI elements, interactions, and animations.
+
+================================================================================
+LAYOUT ELEMENTS
+================================================================================
+
+HEADER (Sticky HUD Bar)
+-----------------------
+- Logo ("News/Bench") - Monospace, muted, links to home
+- Stats display - Story count / source count, centered, hidden on mobile
+- Sync button - Triggers manual refresh, changes to "SYNCING..." when active
+
+MAIN GRID
+---------
+- Asymmetric newspaper grid - 12-column CSS grid with varied spans:
+  - Story 1: 8 columns (hero)
+  - Stories 2-5: 4 columns each
+  - Stories 6-7: 6 columns each
+  - Stories 8-11: 3 columns each
+  - And so on...
+- On mobile: Converts to single-column vertical scroll
+
+STORY CARDS
+-----------
+- Relevance score (top-right) - "R/85" format, green accent
+- Source dots - Colored squares showing political lean:
+  - Blue = left
+  - Gray = center
+  - Red = right
+  - Teal = international
+- Date/source count - "2 hours ago / 5 sources"
+- Headline - Typography scales based on card size (48px for hero, 24px standard)
+- Breaking indicator - Red left border + blinking "ALERT" badge for top 2 stories
+
+MODAL (Expanded Story)
+----------------------
+- Close button - "[ESC] Close" in top-right corner
+- Masthead - "News/Bench" header
+- Date line - Date + source count
+- Headline - Large 56px headline
+- Story body - Drop cap on first letter, max 72 characters wide
+- Framing grid - 3-column grid showing Left/Center/Right perspectives with colored top borders
+- Blind spots section - Key differences between outlets
+- Sources list - Clickable badges linking to original articles
+
+FOOTER
+------
+- Disclaimer about AI-generated content
+
+================================================================================
+INTERACTIONS
+================================================================================
+
+Interaction          | Trigger                              | Result
+---------------------|--------------------------------------|----------------------------------
+Tap story card       | Tap/click                            | Opens modal with full story + haptic feedback
+Close modal          | Tap overlay / tap close / press ESC  | Closes modal, restores scroll position
+Pull-to-refresh      | Pull down from top (mobile)          | Shows "Pull to refresh" indicator, triggers sync at 80px
+Infinite scroll      | Scroll near bottom                   | Loads 10 more stories automatically
+Sync button          | Tap header button                    | Triggers backend refresh, shows toast
+Source badge tap     | Tap in modal                         | Opens original article in new tab
+Haptic feedback      | Card tap, modal close, pull-refresh  | Light/medium vibration via Capacitor or navigator.vibrate
+
+================================================================================
+ANIMATIONS
+================================================================================
+
+Animation            | Element              | Details
+---------------------|----------------------|------------------------------------------
+Reveal on scroll     | Story cards          | Fade in + slide up (translateY 20px -> 0) when entering viewport, staggered delay for first 5 cards
+Card press           | Story cards          | Scale to 0.98 on :active (touch feedback)
+Modal open           | Overlay + paper      | Overlay fades in (opacity 0->1), paper slides up (translateY 40px -> 0)
+Modal close          | Overlay + paper      | Reverse of open
+Scroll progress      | Top bar              | Green gradient bar grows with scroll position
+Loading spinner      | Infinite scroll      | 16px spinning circle with green top border
+Breaking alert       | Top stories          | Blinking red "ALERT" text (opacity 1 -> 0.3 -> 1)
+Signal dot           | Bottom-right corner  | Pulsing green dot (opacity 1 -> 0.2 -> 1)
+Pull indicator       | Top of screen        | Slides down with pull distance, fades in
+Toast                | Bottom-left          | Slides up + fades in, auto-removes after 3s
+Update banner        | Below header         | Slides down when new content available
+Scan lines           | Full screen          | Subtle horizontal lines overlay (purely aesthetic)
+Hover states         | Buttons, cards       | Border color changes, text color to green
+
+================================================================================
+iOS/MOBILE OPTIMIZATIONS
+================================================================================
+
+- Safe area insets - All elements respect notch/home indicator via env(safe-area-inset-*)
+- Scroll position preservation - Modal open/close saves and restores scroll position
+- Body lock on modal - Prevents background scroll when modal is open (position: fixed)
+- Touch callout disabled - No long-press context menus on interactive elements
+- Overscroll disabled - No rubber-banding at page edges
+- 100dvh - Uses dynamic viewport height for proper sizing with iOS address bar
+- Passive event listeners - Scroll/touch events marked passive for performance
+- Content-visibility - Off-screen cards use content-visibility: auto for render performance
+
+================================================================================
+DESIGN SYSTEM
+================================================================================
+
+COLORS
+------
+--void: #0c0e12          (dark background)
+--void-light: #11141a    (slightly lighter background)
+--surface: #161a22       (card backgrounds)
+--line: rgba(255,255,255,0.08)   (borders)
+--text-max: #ffffff      (maximum contrast text)
+--text-high: rgba(255,255,255,0.87)  (primary text)
+--text-mid: rgba(255,255,255,0.6)    (secondary text)
+--text-low: rgba(255,255,255,0.38)   (muted text)
+--signal: #00ff88        (green accent/success)
+--alert: #ff3b3b         (red alert)
+--lean-l: #4a9eff        (left-leaning sources)
+--lean-c: #888888        (center sources)
+--lean-r: #ff6b6b        (right-leaning sources)
+--lean-i: #00d4aa        (international sources)
+
+TYPOGRAPHY
+----------
+--font-display: 'Space Grotesk'  (headlines, body)
+--font-mono: 'IBM Plex Mono'     (labels, metadata, UI elements)
+
+DESIGN PRINCIPLES
+-----------------
+- No rounded corners (sharp, technical aesthetic)
+- Typography-first (minimal visual decoration)
+- Asymmetric grids (editorial, newspaper-inspired)
+- Scan lines + noise texture (retro-futuristic HUD feel)
+- Inspired by: Alien, 2001: A Space Odyssey, Swiss Style Typography
+
+================================================================================
+POTENTIAL UX IMPROVEMENTS
+================================================================================
+
+1. No loading skeleton - Cards pop in abruptly on infinite scroll; consider placeholder shimmer
+2. No swipe-to-dismiss - Modal requires tap to close; swipe down would feel more native
+3. No offline indicator - If connection drops mid-use, user has no feedback until navigation fails
+4. No search/filter - No way to find specific topics or filter by source lean
+5. First-story hint - "Scroll for more" text on first card fades in/out but may be missed
+
+================================================================================
+FILE STRUCTURE
+================================================================================
+
+/static/
+  style.css          - All styles (1300+ lines)
+  sw.js              - Service worker for PWA/offline
+  manifest.json      - PWA manifest
+  offline.html       - Offline fallback page
+  index.html         - Capacitor loading screen
+  /icons/            - App icons (various sizes)
+  /splash/           - Splash screen images
+
+/templates/
+  index.html         - Main app template (Flask/Jinja2)
+
+/ios/                - Capacitor iOS project
+/android/            - Capacitor Android project
+
+================================================================================

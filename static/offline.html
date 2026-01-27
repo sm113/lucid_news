@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>News Bench - Offline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --void: #0c0e12;
+      --void-light: #11141a;
+      --line: rgba(255, 255, 255, 0.08);
+      --text-high: rgba(255, 255, 255, 0.87);
+      --text-low: rgba(255, 255, 255, 0.38);
+      --signal: #00ff88;
+      --alert: #ff3b3b;
+      --font-display: 'Space Grotesk', -apple-system, sans-serif;
+      --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background: var(--void);
+      color: var(--text-high);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      padding-top: max(20px, env(safe-area-inset-top));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* Ambient background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 120% 60% at 50% -10%, rgba(60, 30, 30, 0.4), transparent 50%),
+        radial-gradient(ellipse 80% 50% at 0% 100%, rgba(50, 20, 20, 0.3), transparent 40%),
+        linear-gradient(180deg, var(--void) 0%, var(--void-light) 100%);
+      z-index: -2;
+    }
+
+    /* Scan lines */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, 0.15) 3px,
+        rgba(0, 0, 0, 0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0.4;
+    }
+
+    /* Corner frame */
+    .frame {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top));
+      left: max(16px, env(safe-area-inset-left));
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .container {
+      text-align: center;
+      z-index: 5;
+      max-width: 400px;
+    }
+
+    .alert-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      color: var(--alert);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 300;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .description {
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text-low);
+      line-height: 1.7;
+      margin-bottom: 48px;
+    }
+
+    button {
+      background: none;
+      border: 1px solid var(--line);
+      color: var(--text-high);
+      padding: 14px 32px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button:hover {
+      border-color: var(--signal);
+      color: var(--signal);
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    /* Status indicator dot - red for offline */
+    .signal-dot {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      right: max(24px, env(safe-area-inset-right));
+      width: 6px;
+      height: 6px;
+      background: var(--alert);
+      animation: pulse 2s ease-in-out infinite;
+      z-index: 5;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="signal-dot"></div>
+
+  <div class="container">
+    <div class="alert-badge">Connection Lost</div>
+    <h1>No Signal</h1>
+    <p class="description">News Bench requires an internet connection to fetch the latest news. Check your connection and try again.</p>
+    <button onclick="location.reload()">Retry Connection</button>
+  </div>
+</body>
+</html>

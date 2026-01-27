@@ -15,7 +15,8 @@ services:
     plan: free
 
     # Build settings - install deps only (pipeline runs on startup)
-    buildCommand: pip install -r requirements.txt
+    # Added retries for large packages like PyTorch (915MB)
+    buildCommand: pip install --retries 5 --timeout 300 -r requirements.txt
 
     # Start command - runs pipeline if needed, then starts gunicorn
     startCommand: python start.py
@@ -26,6 +27,10 @@ services:
         value: "true"
       - key: GROQ_API_KEY
         sync: false  # Set manually in dashboard for security
+      - key: TURSO_DATABASE_URL
+        sync: false  # Set manually: libsql://[db-name]-[org].turso.io
+      - key: TURSO_AUTH_TOKEN
+        sync: false  # Set manually: your Turso auth token
       - key: PYTHONUNBUFFERED
         value: "1"
 

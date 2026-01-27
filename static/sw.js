@@ -3,7 +3,8 @@ const CACHE_NAME = 'newsbench-v1';
 const STATIC_ASSETS = [
   '/',
   '/static/style.css',
-  '/static/manifest.json'
+  '/static/manifest.json',
+  '/static/offline.html'
 ];
 
 // Install: cache static assets
@@ -55,7 +56,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // HTML pages: network-first with cache fallback
+  // HTML pages: network-first with cache fallback, then offline page
   event.respondWith(
     fetch(event.request)
       .then(response => {
@@ -63,6 +64,8 @@ self.addEventListener('fetch', event => {
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(event.request)
+        .then(cached => cached || caches.match('/static/offline.html'))
+      )
   );
 });
