@@ -15,9 +15,9 @@ def main():
         'gunicorn', 'app:app',
         '--bind', f'0.0.0.0:{port}',
         '--workers', '1',      # Single worker to avoid duplicate pipelines/schedulers
-        '--threads', '4',
-        '--timeout', '120',
-        '--preload'            # Load app once before forking
+        '--threads', '2',      # Reduce threads to save memory
+        '--timeout', '300',    # 5 min timeout for slow model loading
+        '--graceful-timeout', '300'
     ]
 
     os.execvp('gunicorn', cmd)
