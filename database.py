@@ -8,7 +8,7 @@ Supports both local SQLite and Turso (hosted SQLite) for production.
 import sqlite3
 import os
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from contextlib import contextmanager
 
 # =============================================================================
@@ -23,67 +23,86 @@ TURSO_AUTH_TOKEN = os.environ.get('TURSO_AUTH_TOKEN')
 # Use Turso if configured, otherwise local SQLite
 USE_TURSO = bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
 
+_libsql = None
 if USE_TURSO:
-    import libsql_experimental as libsql
-    print(f"[DATABASE] Using Turso: {TURSO_DATABASE_URL[:50]}...")
-else:
+    try:
+        import libsql_experimental as _libsql
+        print(f"[DATABASE] Using Turso: {TURSO_DATABASE_URL[:50]}...")
+    except ImportError:
+        print("[DATABASE] WARNING: libsql_experimental not installed, falling back to local SQLite")
+        USE_TURSO = False
+
+if not USE_TURSO:
     print(f"[DATABASE] Using local SQLite: {DATABASE_PATH}")
+
 
 # =============================================================================
 # CONNECTION MANAGEMENT
 # =============================================================================
 
+def _get_raw_connection():
+    """Get a raw database connection."""
+    if USE_TURSO:
+        return _libsql.connect(database=TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+    else:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+
+
 def _row_to_dict(cursor, row):
     """Convert a row to a dictionary using cursor description."""
     if row is None:
         return None
-    # If it's already a sqlite3.Row, convert directly
     if hasattr(row, 'keys'):
         return dict(row)
-    # Otherwise use cursor description (for libsql)
     columns = [col[0] for col in cursor.description]
     return dict(zip(columns, row))
 
-def _rows_to_dicts(cursor, rows):
-    """Convert multiple rows to dictionaries."""
+
+def _fetchall_dicts(cursor):
+    """Fetch all rows as dictionaries."""
+    rows = cursor.fetchall()
     return [_row_to_dict(cursor, row) for row in rows]
+
 
 def _fetchone_dict(cursor):
     """Fetch one row as dictionary."""
     row = cursor.fetchone()
     return _row_to_dict(cursor, row) if row else None
 
-def _fetchall_dicts(cursor):
-    """Fetch all rows as dictionaries."""
-    rows = cursor.fetchall()
-    return _rows_to_dicts(cursor, rows)
 
 @contextmanager
 def get_connection():
-    """Context manager for database connections."""
-    if USE_TURSO:
-        conn = libsql.connect(database=TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
-        # libsql doesn't support row_factory, we'll convert manually
-    else:
-        conn = sqlite3.connect(DATABASE_PATH)
+    """Context manager for database connections with proper commit/rollback."""
+    conn = _get_raw_connection()
+    if not USE_TURSO:
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
     try:
         yield conn
         conn.commit()
-    except Exception:
-        conn.rollback()
+    except Exception as e:
+        try:
+            conn.rollback()
+        except:
+            pass
         raise
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except:
+            pass
 
+
+# =============================================================================
+# DATABASE INITIALIZATION
+# =============================================================================
 
 def init_database():
     """Initialize the database with required tables."""
     with get_connection() as conn:
         cursor = conn.cursor()
 
-        # Articles table - stores raw scraped articles
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS articles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +117,6 @@ def init_database():
             )
         """)
 
-        # Stories table - stores synthesized story summaries
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS stories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,7 +132,6 @@ def init_database():
             )
         """)
 
-        # Junction table linking stories to their source articles
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS story_sources (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,16 +143,13 @@ def init_database():
             )
         """)
 
-        # Indexes for faster queries
+        # Indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_created ON articles(created_at)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_source ON articles(source_name)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stories_created ON stories(created_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_story_sources_story ON story_sources(story_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_story_sources_article ON story_sources(article_id)")
 
-        conn.commit()
-        print("Database initialized successfully")
+    print("[DATABASE] Initialized successfully")
 
 
 # =============================================================================
@@ -151,19 +165,20 @@ def insert_article(
     published_at: str = None
 ) -> Optional[int]:
     """Insert a new article. Returns article ID or None if duplicate."""
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        try:
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO articles (source_name, source_lean, headline, lede, url, published_at, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (source_name, source_lean, headline, lede, url, published_at, datetime.now().isoformat()))
             return cursor.lastrowid
-        except (sqlite3.IntegrityError, Exception) as e:
-            # Duplicate URL or other constraint violation
-            if 'UNIQUE constraint' in str(e) or 'IntegrityError' in str(type(e).__name__):
-                return None
-            raise
+    except Exception as e:
+        error_str = str(e).lower()
+        if 'unique' in error_str or 'constraint' in error_str:
+            return None  # Duplicate URL, this is expected
+        print(f"[DATABASE] Error inserting article: {e}")
+        return None
 
 
 def get_recent_articles(hours: int = 48) -> List[Dict]:
@@ -173,9 +188,7 @@ def get_recent_articles(hours: int = 48) -> List[Dict]:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, source_name, source_lean, headline, lede, url, published_at, created_at
-            FROM articles
-            WHERE created_at > ?
-            ORDER BY created_at DESC
+            FROM articles WHERE created_at > ? ORDER BY created_at DESC
         """, (cutoff,))
         return _fetchall_dicts(cursor)
 
@@ -186,10 +199,7 @@ def get_articles_without_embedding(limit: int = 100) -> List[Dict]:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, source_name, source_lean, headline, lede, url, published_at, created_at
-            FROM articles
-            WHERE embedding IS NULL
-            ORDER BY created_at DESC
-            LIMIT ?
+            FROM articles WHERE embedding IS NULL ORDER BY created_at DESC LIMIT ?
         """, (limit,))
         return _fetchall_dicts(cursor)
 
@@ -198,9 +208,7 @@ def update_article_embedding(article_id: int, embedding: bytes):
     """Store embedding for an article."""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE articles SET embedding = ? WHERE id = ?
-        """, (embedding, article_id))
+        cursor.execute("UPDATE articles SET embedding = ? WHERE id = ?", (embedding, article_id))
 
 
 def get_articles_with_embeddings(hours: int = 48) -> List[Dict]:
@@ -210,9 +218,7 @@ def get_articles_with_embeddings(hours: int = 48) -> List[Dict]:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, source_name, source_lean, headline, lede, url, published_at, created_at, embedding
-            FROM articles
-            WHERE created_at > ? AND embedding IS NOT NULL
-            ORDER BY created_at DESC
+            FROM articles WHERE created_at > ? AND embedding IS NOT NULL ORDER BY created_at DESC
         """, (cutoff,))
         return _fetchall_dicts(cursor)
 
@@ -253,109 +259,50 @@ def insert_story(
     center_framing: str,
     key_differences: str,
     article_ids: List[int]
-) -> int:
+) -> Optional[int]:
     """Insert a new synthesized story with its source articles."""
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        now = datetime.now().isoformat()
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            now = datetime.now().isoformat()
 
-        cursor.execute("""
-            INSERT INTO stories (synthesized_headline, consensus, left_framing, right_framing,
-                                 center_framing, key_differences, source_count, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (synthesized_headline, consensus, left_framing, right_framing,
-              center_framing, key_differences, len(article_ids), now, now))
-
-        story_id = cursor.lastrowid
-
-        # Link articles to story
-        for article_id in article_ids:
             cursor.execute("""
-                INSERT OR IGNORE INTO story_sources (story_id, article_id) VALUES (?, ?)
-            """, (story_id, article_id))
+                INSERT INTO stories (synthesized_headline, consensus, left_framing, right_framing,
+                                     center_framing, key_differences, source_count, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (synthesized_headline, consensus, left_framing, right_framing,
+                  center_framing, key_differences, len(article_ids), now, now))
 
-        return story_id
+            story_id = cursor.lastrowid
 
+            for article_id in article_ids:
+                cursor.execute(
+                    "INSERT OR IGNORE INTO story_sources (story_id, article_id) VALUES (?, ?)",
+                    (story_id, article_id)
+                )
 
-def calculate_relevance_score(story_row: dict, article_count: int, lean_diversity: int, hours_old: float) -> float:
-    """
-    Calculate relevance score for a story.
-
-    Factors:
-    - Source count: More sources = bigger story (weight: 15 per source)
-    - Article count: More articles = more coverage (weight: 3 per article)
-    - Political diversity: Stories covered across spectrum are significant (weight: 20 per unique lean)
-    - Recency: Newer stories get a boost (max 50 points, decays over 48 hours)
-    - Cross-spectrum bonus: If covered by both left AND right, +40 bonus
-    """
-    source_score = story_row.get('source_count', 0) * 15
-    article_score = article_count * 3
-    diversity_score = lean_diversity * 20
-
-    # Recency: full 50 points if < 2 hours old, decays to 0 at 48 hours
-    recency_score = max(0, 50 * (1 - (hours_old / 48)))
-
-    # Cross-spectrum bonus (if has both left and right framing)
-    cross_spectrum_bonus = 0
-    if story_row.get('left_framing') and story_row.get('right_framing'):
-        if 'No ' not in story_row.get('left_framing', '')[:10] and 'No ' not in story_row.get('right_framing', '')[:10]:
-            cross_spectrum_bonus = 40
-
-    return source_score + article_score + diversity_score + recency_score + cross_spectrum_bonus
+            return story_id
+    except Exception as e:
+        print(f"[DATABASE] Error inserting story: {e}")
+        return None
 
 
 def get_stories(limit: int = 20, offset: int = 0) -> List[Dict]:
-    """Get synthesized stories sorted by relevance score."""
+    """Get synthesized stories sorted by recency."""
     with get_connection() as conn:
         cursor = conn.cursor()
-
-        # Get stories with additional metrics for relevance calculation
         cursor.execute("""
-            SELECT
-                s.id, s.synthesized_headline, s.consensus, s.left_framing, s.right_framing,
-                s.center_framing, s.key_differences, s.source_count, s.created_at, s.updated_at,
-                COUNT(DISTINCT ss.article_id) as article_count,
-                COUNT(DISTINCT a.source_lean) as lean_diversity,
-                (julianday('now') - julianday(s.created_at)) * 24 as hours_old
-            FROM stories s
-            LEFT JOIN story_sources ss ON s.id = ss.story_id
-            LEFT JOIN articles a ON ss.article_id = a.id
-            GROUP BY s.id
-        """)
-
-        stories = []
-        for story in _fetchall_dicts(cursor):
-            story['relevance_score'] = calculate_relevance_score(
-                story,
-                story.get('article_count', 0),
-                story.get('lean_diversity', 0),
-                story.get('hours_old', 0)
-            )
-            stories.append(story)
-
-        # Sort by relevance score descending
-        stories.sort(key=lambda x: x['relevance_score'], reverse=True)
-
-        # Apply pagination
-        paginated = stories[offset:offset + limit]
-
-        # Clean up internal calculation fields, keep relevance_score
-        for story in paginated:
-            story.pop('article_count', None)
-            story.pop('lean_diversity', None)
-            story.pop('hours_old', None)
-            # Round relevance score for display
-            story['relevance_score'] = round(story.get('relevance_score', 0), 1)
-
-        return paginated
+            SELECT id, synthesized_headline, consensus, left_framing, right_framing,
+                   center_framing, key_differences, source_count, created_at, updated_at
+            FROM stories ORDER BY created_at DESC LIMIT ? OFFSET ?
+        """, (limit, offset))
+        return _fetchall_dicts(cursor)
 
 
 def get_story_with_sources(story_id: int) -> Optional[Dict]:
     """Get a story with all its source articles."""
     with get_connection() as conn:
         cursor = conn.cursor()
-
-        # Get story
         cursor.execute("""
             SELECT id, synthesized_headline, consensus, left_framing, right_framing,
                    center_framing, key_differences, source_count, created_at, updated_at
@@ -365,7 +312,6 @@ def get_story_with_sources(story_id: int) -> Optional[Dict]:
         if not story:
             return None
 
-        # Get source articles
         cursor.execute("""
             SELECT a.id, a.source_name, a.source_lean, a.headline, a.lede, a.url, a.published_at
             FROM articles a
@@ -374,7 +320,6 @@ def get_story_with_sources(story_id: int) -> Optional[Dict]:
             ORDER BY a.source_lean, a.source_name
         """, (story_id,))
         story['sources'] = _fetchall_dicts(cursor)
-
         return story
 
 
@@ -438,19 +383,12 @@ def cleanup_old_data(days: int = 7):
     cutoff = (datetime.now() - timedelta(days=days)).isoformat()
     with get_connection() as conn:
         cursor = conn.cursor()
-
-        # Delete old stories (cascades to story_sources)
         cursor.execute("DELETE FROM stories WHERE created_at < ?", (cutoff,))
-        deleted_stories = cursor.rowcount
-
-        # Delete old articles not linked to any story
         cursor.execute("""
             DELETE FROM articles
             WHERE created_at < ? AND id NOT IN (SELECT article_id FROM story_sources)
         """, (cutoff,))
-        deleted_articles = cursor.rowcount
-
-        print(f"Cleaned up {deleted_stories} old stories and {deleted_articles} old articles")
+    print(f"[DATABASE] Cleaned up data older than {days} days")
 
 
 if __name__ == "__main__":
