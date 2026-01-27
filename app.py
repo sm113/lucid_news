@@ -31,6 +31,9 @@ import database
 app = Flask(__name__)
 CORS(app)  # Enable CORS for Capacitor mobile app
 
+# Initialize database at module load (needed for gunicorn)
+database.init_database()
+
 # =============================================================================
 # SCHEDULED TASKS (APScheduler)
 # =============================================================================
@@ -85,6 +88,19 @@ def init_scheduler():
 
     except ImportError:
         print("[SCHEDULER] APScheduler not installed - run: pip install apscheduler")
+
+# Initialize scheduler at module load (for gunicorn)
+init_scheduler()
+
+# Run pipeline in background if no data (for fresh deploys)
+def _init_pipeline_if_empty():
+    stats = database.get_stats()
+    if stats['total_stories'] == 0:
+        print("[STARTUP] No stories - starting background pipeline...")
+        pipeline_thread = threading.Thread(target=run_pipeline_job, daemon=True)
+        pipeline_thread.start()
+
+_init_pipeline_if_empty()
 
 # =============================================================================
 # HELPER FUNCTIONS
