@@ -53,7 +53,19 @@ def init_scheduler():
 
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
+        from datetime import datetime, timedelta
+
         scheduler = BackgroundScheduler()
+
+        # Run pipeline 60 seconds after startup (gives time for health check)
+        scheduler.add_job(
+            run_pipeline_job,
+            'date',
+            run_date=datetime.now() + timedelta(seconds=60),
+            id='initial_pipeline'
+        )
+
+        # Then run every REFRESH_INTERVAL_HOURS
         scheduler.add_job(
             run_pipeline_job,
             'interval',
@@ -61,8 +73,9 @@ def init_scheduler():
             id='news_pipeline',
             replace_existing=True
         )
+
         scheduler.start()
-        print(f"[SCHEDULER] Started - will run every {REFRESH_INTERVAL_HOURS} hours")
+        print(f"[SCHEDULER] Started - initial run in 60s, then every {REFRESH_INTERVAL_HOURS} hours")
         atexit.register(lambda: scheduler.shutdown())
     except Exception as e:
         print(f"[SCHEDULER] Failed to start: {e}")
