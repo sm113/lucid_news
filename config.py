@@ -62,14 +62,14 @@ NEWS_SOURCES = [
 # Cosine similarity threshold for clustering (0.0 - 1.0)
 # Higher = stricter matching, fewer clusters
 # Lower = looser matching, more articles grouped together
-SIMILARITY_THRESHOLD = 0.60  # Slightly looser to catch more related articles
+SIMILARITY_THRESHOLD = 0.50  # Lower threshold to catch more related articles
 
 # Minimum number of different sources required for a story to be included
 # Helps filter out stories only covered by one outlet
 MIN_SOURCES_FOR_STORY = 2
 
 # Maximum articles to consider for clustering (performance)
-MAX_ARTICLES_FOR_CLUSTERING = 1000  # Doubled capacity
+MAX_ARTICLES_FOR_CLUSTERING = 2000  # Process more articles per run
 
 # How many hours back to look for articles to cluster
 CLUSTERING_WINDOW_HOURS = 96  # 4 days instead of 2
