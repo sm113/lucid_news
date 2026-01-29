@@ -11,7 +11,7 @@
     <!-- iOS Specific -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="News/Bench">
+    <meta name="apple-mobile-web-app-title" content="Lucid">
     <meta name="format-detection" content="telephone=no">
 
     <!-- Icons -->
@@ -26,7 +26,7 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
 
-    <title>NEWS/BENCH</title>
+    <title>LUCID</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -35,7 +35,7 @@
 
     <header class="header">
         <a href="#" class="logo" onclick="event.preventDefault()">
-            <span class="logo-text">News/Bench</span>
+            <span class="logo-text">Lucid</span>
         </a>
         <div class="header-meta">
             <span id="storyCount">-- STORIES</span>
@@ -68,7 +68,7 @@
     <div class="swipe-hint" id="swipeHint">&larr; Swipe to dismiss &rarr;</div>
 
     <footer class="footer" id="appFooter" style="display: none;">
-        <p>NEWS/BENCH &mdash; Multi-source aggregation and synthesis system</p>
+        <p>LUCID &mdash; Multi-perspective news synthesis</p>
         <p class="footer-disclaimer">AI-generated analysis / Consult primary sources for verification</p>
     </footer>
 
@@ -77,8 +77,8 @@
         // CONFIG & STATE
         // ===========================================
         const SERVER_URL = 'https://news-bench.onrender.com';
-        const CACHE_KEY = 'newsbench_stories_cache';
-        const CACHE_TIME_KEY = 'newsbench_cache_time';
+        const CACHE_KEY = 'lucid_stories_cache';
+        const CACHE_TIME_KEY = 'lucid_cache_time';
 
         let currentStory = null;
         let scrollPosition = 0;
@@ -500,7 +500,7 @@
             const timestamp = new Date().toISOString().split('T')[0];
 
             document.getElementById('expandedContent').innerHTML = `
-                <div class="expanded-masthead">News/Bench</div>
+                <div class="expanded-masthead">Lucid</div>
                 <div class="expanded-date">${timestamp} / ${sources.length} sources analyzed</div>
 
                 <h1 class="expanded-headline">${story.synthesized_headline}</h1>

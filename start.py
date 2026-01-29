@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Startup script for Render deployment.
+Lucid - Startup script for Render deployment.
 Starts gunicorn immediately. Pipeline runs via scheduler or /api/refresh.
 """
 import os

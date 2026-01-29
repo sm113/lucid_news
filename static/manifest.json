@@ -1,6 +1,6 @@
 {
-  "name": "News/Bench",
-  "short_name": "News/Bench",
+  "name": "Lucid",
+  "short_name": "Lucid",
   "description": "Multi-source news aggregation and synthesis",
   "start_url": "/",
   "display": "standalone",

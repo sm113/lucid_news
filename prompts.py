@@ -1,6 +1,6 @@
 """
-News Bench - Prompt Templates
-=============================
+Lucid - Prompt Templates
+========================
 All LLM prompts in one place for easy viewing and tweaking.
 
 TIPS FOR OPTIMIZATION:

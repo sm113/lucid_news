@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-News Bench - Pipeline Orchestrator
-==================================
+Lucid - Pipeline Orchestrator
+==============================
 Runs the full news processing pipeline: scrape -> cluster -> synthesize
 
 Usage:
@@ -37,7 +37,7 @@ def print_banner():
     print("""
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║   📰 NEWS BENCH                                           ║
+║   ✨ LUCID                                                ║
 ║   Neutral News Aggregator & Analyzer                      ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
@@ -120,7 +120,7 @@ def show_stats():
     database.init_database()
     stats = database.get_stats()
 
-    print("\n📊 News Bench Statistics")
+    print("\n📊 Lucid Statistics")
     print("-" * 40)
     print(f"  Total articles:     {stats['total_articles']}")
     print(f"  Total stories:      {stats['total_stories']}")
@@ -144,7 +144,7 @@ def cleanup(days: int = 7):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="News Bench - Neutral News Aggregator Pipeline",
+        description="Lucid - Neutral News Aggregator Pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

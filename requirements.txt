@@ -1,4 +1,4 @@
-# News Bench - Python Dependencies
+# Lucid - Python Dependencies
 # =================================
 # Install with: pip install -r requirements.txt
 

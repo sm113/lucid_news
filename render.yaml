@@ -1,7 +1,7 @@
 # Render Blueprint
 # Deploy with: https://render.com/docs/blueprint-spec
 #
-# This deploys News Bench as a web service with:
+# This deploys Lucid as a web service with:
 # - Automatic 12-hour news pipeline updates
 # - Gunicorn for production performance
 #
@@ -10,7 +10,7 @@
 
 services:
   - type: web
-    name: news-bench
+    name: lucid
     runtime: python
     plan: free
 

@@ -1,6 +1,6 @@
 """
-News Bench - RSS Scraper (Upgraded)
-===================================
+Lucid - RSS Scraper (Upgraded)
+==============================
 Scrapes RSS feeds and extracts FULL article text using Newspaper3k.
 """
 
@@ -188,7 +188,7 @@ def scrape_source(source: Dict) -> int:
 def scrape_all_sources() -> Dict[str, int]:
     """Scrape all configured news sources."""
     print("\n" + "="*60)
-    print("NEWS BENCH - Full Text Scraper")
+    print("LUCID - Full Text Scraper")
     print("="*60 + "\n")
 
     database.init_database()

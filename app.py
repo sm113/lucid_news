@@ -1,6 +1,6 @@
 """
-News Bench - Flask Web Application
-==================================
+Lucid - Flask Web Application
+============================
 Simple web interface for browsing synthesized news stories.
 """
 

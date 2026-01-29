@@ -1,6 +1,6 @@
 """
-News Bench - Story Synthesizer (Upgraded)
-=========================================
+Lucid - Story Synthesizer (Upgraded)
+====================================
 Uses LLMs with JSON-enforcement for reliable story generation.
 """
 
@@ -207,7 +207,7 @@ def synthesize_and_store_cluster(articles: List[Dict]) -> Optional[int]:
     return story_id
 
 def run_synthesis(clusters=None) -> List[int]:
-    print("\n" + "="*60 + "\nNEWS BENCH - JSON Synthesis\n" + "="*60)
+    print("\n" + "="*60 + "\nLUCID - JSON Synthesis\n" + "="*60)
     
     if clusters is None:
         clusters = clusterer.run_clustering()

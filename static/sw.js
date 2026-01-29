@@ -1,5 +1,5 @@
-// News/Bench Service Worker
-const CACHE_NAME = 'newsbench-v2';
+// Lucid Service Worker
+const CACHE_NAME = 'lucid-v2';
 const API_HOST = 'news-bench.onrender.com';
 const STATIC_ASSETS = [
   'index.html',

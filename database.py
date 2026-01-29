@@ -1,6 +1,6 @@
 """
-News Bench - Database Module
-============================
+Lucid - Database Module
+========================
 SQLite storage for articles and synthesized stories.
 Supports both local SQLite and Turso (hosted SQLite) for production.
 """

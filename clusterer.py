@@ -1,6 +1,6 @@
 """
-News Bench - Article Clusterer
-==============================
+Lucid - Article Clusterer
+=========================
 Generates embeddings via Jina AI API and clusters related stories using cosine similarity.
 """
 
@@ -263,7 +263,7 @@ def run_clustering() -> List[List[Dict]]:
     4. Cluster them
     """
     print("\n" + "="*60)
-    print("NEWS BENCH - Article Clustering (Jina AI)")
+    print("LUCID - Article Clustering (Jina AI)")
     print("="*60)
 
     # Step 1: Embed any new articles

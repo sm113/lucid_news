@@ -1,6 +1,6 @@
 """
-News Bench - Central Configuration
-===================================
+Lucid - Central Configuration
+============================
 All configuration variables in one place. Edit these to customize behavior.
 """
 
@@ -146,7 +146,7 @@ else:
 REQUEST_TIMEOUT = 15
 
 # User agent for requests
-USER_AGENT = "NewsBench/1.0 (News Aggregator; +https://github.com/news-bench)"
+USER_AGENT = "Lucid/1.0 (News Aggregator; +https://github.com/lucid)"
 
 # Delay between requests to same domain (seconds)
 REQUEST_DELAY = 1.0

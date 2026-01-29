@@ -1,5 +1,5 @@
-NEWS BENCH - UI DOCUMENTATION
-==============================
+LUCID - UI DOCUMENTATION
+=========================
 Complete breakdown of all UI elements, interactions, and animations.
 
 ================================================================================
@@ -8,7 +8,7 @@ LAYOUT ELEMENTS
 
 HEADER (Sticky HUD Bar)
 -----------------------
-- Logo ("News/Bench") - Monospace, muted, links to home
+- Logo ("Lucid") - Monospace, muted, links to home
 - Stats display - Story count / source count, centered, hidden on mobile
 - Sync button - Triggers manual refresh, changes to "SYNCING..." when active
 
@@ -37,7 +37,7 @@ STORY CARDS
 MODAL (Expanded Story)
 ----------------------
 - Close button - "[ESC] Close" in top-right corner
-- Masthead - "News/Bench" header
+- Masthead - "Lucid" header
 - Date line - Date + source count
 - Headline - Large 56px headline
 - Story body - Drop cap on first letter, max 72 characters wide
