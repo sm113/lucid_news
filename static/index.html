@@ -576,10 +576,7 @@
             btn.textContent = 'SYNCING...';
 
             try {
-                await fetch(SERVER_URL + '/api/refresh', { method: 'POST' });
-                showToast('Sync initiated');
-
-                // Re-fetch stories and stats
+                // Just fetch latest data from database (pipeline runs via scheduler)
                 const [storiesRes, statsRes] = await Promise.all([
                     fetch(SERVER_URL + '/api/stories?page=1&limit=20', { cache: 'no-store' }),
                     fetch(SERVER_URL + '/api/stats', { cache: 'no-store' })
@@ -614,8 +611,10 @@
                     if (loadMore) loadMore.style.display = 'none';
                     if (endOfFeed) endOfFeed.style.display = 'flex';
                 }
+
+                showToast('Feed updated');
             } catch (e) {
-                showToast('Sync failed');
+                showToast('Failed to refresh');
             }
 
             setTimeout(() => {
