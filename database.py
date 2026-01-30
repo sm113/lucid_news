@@ -384,6 +384,27 @@ def get_stats() -> Dict:
         }
 
 
+def get_articles_added_since(hours: int = 2) -> int:
+    """Count articles added in the last N hours."""
+    cutoff = (datetime.now() - timedelta(hours=hours)).isoformat()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM articles WHERE created_at > ?", (cutoff,))
+        return cursor.fetchone()[0]
+
+
+def has_unclustered_articles() -> bool:
+    """Check if there are any unclustered articles with embeddings."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM articles a
+            LEFT JOIN story_sources ss ON a.id = ss.article_id
+            WHERE ss.id IS NULL AND a.embedding IS NOT NULL
+        """)
+        return cursor.fetchone()[0] > 0
+
+
 def cleanup_old_data(days: int = 7):
     """Remove articles and stories older than N days."""
     cutoff = (datetime.now() - timedelta(days=days)).isoformat()

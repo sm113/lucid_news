@@ -29,23 +29,67 @@ CORS(app)
 
 scheduler = None
 
-def run_pipeline_job():
-    """Background job to run the news pipeline."""
-    print("[SCHEDULER] Starting scheduled pipeline run...")
+# Track when we last scraped to avoid redundant work
+_last_full_scrape = None
+
+def run_pipeline_job(force_scrape: bool = False):
+    """
+    Smart pipeline that skips scraping if recent data exists.
+    - If articles were added in last 2 hours, skip scraping
+    - Always run clustering/synthesis if there are unclustered articles
+    - Full scrape runs every 6 hours via scheduler regardless
+    """
+    global _last_full_scrape
+    print("[SCHEDULER] Starting smart pipeline run...")
+
     try:
         import scraper
         import clusterer
         import synthesizer
 
-        scraper.scrape_all_sources()
-        clusters = clusterer.run_clustering()
-        if clusters:
-            synthesizer.run_synthesis(clusters)
+        # Check if we need to scrape
+        recent_articles = database.get_articles_added_since(hours=2)
+        should_scrape = force_scrape or recent_articles < 50  # Scrape if fewer than 50 recent articles
+
+        if should_scrape:
+            print(f"[SCHEDULER] Running full scrape (recent articles: {recent_articles})")
+            scraper.scrape_all_sources()
+            _last_full_scrape = datetime.now()
+        else:
+            print(f"[SCHEDULER] Skipping scrape - {recent_articles} articles added in last 2 hours")
+
+        # Always check for unclustered articles and process them
+        if database.has_unclustered_articles():
+            print("[SCHEDULER] Processing unclustered articles...")
+            clusters = clusterer.run_clustering()
+            if clusters:
+                synthesizer.run_synthesis(clusters)
+        else:
+            print("[SCHEDULER] No unclustered articles to process")
 
         stats = database.get_stats()
         print(f"[SCHEDULER] Pipeline complete: {stats['total_articles']} articles, {stats['total_stories']} stories")
     except Exception as e:
         print(f"[SCHEDULER] Pipeline error: {e}")
+
+
+def run_quick_pipeline():
+    """Quick pipeline that only does clustering/synthesis on existing articles."""
+    print("[SCHEDULER] Running quick pipeline (clustering only)...")
+    try:
+        import clusterer
+        import synthesizer
+
+        if database.has_unclustered_articles():
+            clusters = clusterer.run_clustering()
+            if clusters:
+                synthesizer.run_synthesis(clusters)
+            stats = database.get_stats()
+            print(f"[SCHEDULER] Quick pipeline complete: {stats['total_stories']} stories")
+        else:
+            print("[SCHEDULER] No unclustered articles to process")
+    except Exception as e:
+        print(f"[SCHEDULER] Quick pipeline error: {e}")
 
 def init_scheduler():
     """Initialize the background scheduler if enabled."""
@@ -60,7 +104,7 @@ def init_scheduler():
 
         scheduler = BackgroundScheduler()
 
-        # Run pipeline 60 seconds after startup (gives time for health check)
+        # Run smart pipeline 60 seconds after startup (skips scrape if recent data)
         scheduler.add_job(
             run_pipeline_job,
             'date',
@@ -68,17 +112,26 @@ def init_scheduler():
             id='initial_pipeline'
         )
 
-        # Then run every REFRESH_INTERVAL_HOURS
+        # Full pipeline with forced scrape every REFRESH_INTERVAL_HOURS
         scheduler.add_job(
-            run_pipeline_job,
+            lambda: run_pipeline_job(force_scrape=True),
             'interval',
             hours=REFRESH_INTERVAL_HOURS,
-            id='news_pipeline',
+            id='full_pipeline',
+            replace_existing=True
+        )
+
+        # Quick pipeline (clustering only) every hour to pick up stragglers
+        scheduler.add_job(
+            run_quick_pipeline,
+            'interval',
+            hours=1,
+            id='quick_pipeline',
             replace_existing=True
         )
 
         scheduler.start()
-        print(f"[SCHEDULER] Started - initial run in 60s, then every {REFRESH_INTERVAL_HOURS} hours")
+        print(f"[SCHEDULER] Started - initial run in 60s, quick pipeline hourly, full scrape every {REFRESH_INTERVAL_HOURS}h")
         atexit.register(lambda: scheduler.shutdown())
     except Exception as e:
         print(f"[SCHEDULER] Failed to start: {e}")
@@ -272,19 +325,12 @@ def api_health():
 
 @app.route('/api/refresh', methods=['POST'])
 def api_refresh():
-    """Manually trigger the news pipeline."""
+    """Manually trigger the news pipeline (smart - skips scrape if recent data)."""
     try:
-        # Import and run pipeline components
-        import scraper
-        import clusterer
-        import synthesizer
+        force = request.args.get('force', 'false').lower() == 'true'
 
-        print("[REFRESH] Starting manual pipeline...")
-        scraper.scrape_all_sources()
-
-        clusters = clusterer.run_clustering()
-        if clusters:
-            synthesizer.run_synthesis(clusters)
+        print(f"[REFRESH] Starting manual pipeline (force_scrape={force})...")
+        run_pipeline_job(force_scrape=force)
 
         stats = database.get_stats()
         print(f"[REFRESH] Complete! Articles: {stats['total_articles']}, Stories: {stats['total_stories']}")

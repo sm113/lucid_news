@@ -87,6 +87,8 @@
         let hasMoreStories = true;
         let loadedStoryIds = new Set();
         let appInitialized = false;
+        let isInitializing = false;  // Prevents concurrent initialization
+        let isRefreshing = false;    // Prevents concurrent refresh
 
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -110,6 +112,10 @@
         }
 
         async function initializeApp() {
+            // Prevent concurrent initialization
+            if (isInitializing || appInitialized) return;
+            isInitializing = true;
+
             const loadingMsg = document.getElementById('loadingMessage');
             const loadingSub = document.getElementById('loadingSubtext');
 
@@ -170,9 +176,11 @@
                 cacheStories(storiesData.stories);
 
                 appInitialized = true;
+                isInitializing = false;
             } catch (e) {
                 if (loadingMsg) loadingMsg.textContent = 'Failed to load stories';
                 if (loadingSub) loadingSub.textContent = 'Pull down or tap SYNC to retry';
+                isInitializing = false;  // Allow retry
             }
         }
 
@@ -229,6 +237,19 @@
             if (loadingState) loadingState.remove();
             const cachedFeed = document.getElementById('cachedFeed');
             if (cachedFeed) cachedFeed.remove();
+
+            // Clear any existing feed to prevent duplicates
+            const existingFeed = document.getElementById('storyFeed');
+            if (existingFeed) existingFeed.remove();
+            const existingLoadMore = document.getElementById('loadMore');
+            if (existingLoadMore) existingLoadMore.remove();
+            const existingEndFeed = document.getElementById('endOfFeed');
+            if (existingEndFeed) existingEndFeed.remove();
+
+            // Reset state for fresh feed
+            loadedStoryIds.clear();
+            currentPage = 1;
+            hasMoreStories = true;
 
             // Create feed structure
             main.insertAdjacentHTML('afterbegin', `
@@ -571,6 +592,10 @@
                 return;
             }
 
+            // Prevent concurrent refreshes
+            if (isRefreshing) return;
+            isRefreshing = true;
+
             const btn = document.getElementById('refreshBtn');
             btn.disabled = true;
             btn.textContent = 'SYNCING...';
@@ -615,11 +640,13 @@
                 showToast('Feed updated');
             } catch (e) {
                 showToast('Failed to refresh');
+                isRefreshing = false;
             }
 
             setTimeout(() => {
                 btn.disabled = false;
                 btn.textContent = 'SYNC';
+                isRefreshing = false;
             }, 3000);
         }
 
