@@ -18,38 +18,101 @@ NEWS_SOURCES = [
     # === Wire Services / Center ===
     {"name": "AP News", "url": "http://associated-press.s3-website-us-east-1.amazonaws.com/topnews.xml", "lean": "center"},
     {"name": "Reuters", "url": "https://feeds.reuters.com/Reuters/worldNews", "lean": "center"},
+    {"name": "Reuters Business", "url": "https://feeds.reuters.com/reuters/businessNews", "lean": "center"},
     {"name": "PBS NewsHour", "url": "https://www.pbs.org/newshour/feeds/rss/headlines", "lean": "center"},
     {"name": "The Hill", "url": "https://thehill.com/feed/", "lean": "center"},
     {"name": "Axios", "url": "https://api.axios.com/feed/", "lean": "center"},
     {"name": "USA Today", "url": "https://rssfeeds.usatoday.com/usatoday-NewsTopStories", "lean": "center"},
+    {"name": "USA Today Sports", "url": "https://rssfeeds.usatoday.com/usatodaycomsports-topstories", "lean": "center"},
+    {"name": "ABC News", "url": "https://abcnews.go.com/abcnews/topstories", "lean": "center"},
+    {"name": "CBS News", "url": "https://www.cbsnews.com/latest/rss/main", "lean": "center"},
+    {"name": "NBC News", "url": "https://feeds.nbcnews.com/nbcnews/public/news", "lean": "center"},
 
     # === Left-leaning ===
     {"name": "NPR", "url": "https://feeds.npr.org/1001/rss.xml", "lean": "left"},
+    {"name": "NPR Science", "url": "https://feeds.npr.org/1007/rss.xml", "lean": "left"},
+    {"name": "NPR Technology", "url": "https://feeds.npr.org/1019/rss.xml", "lean": "left"},
     {"name": "The Guardian", "url": "https://www.theguardian.com/us-news/rss", "lean": "left"},
+    {"name": "Guardian Tech", "url": "https://www.theguardian.com/technology/rss", "lean": "left"},
+    {"name": "Guardian Sports", "url": "https://www.theguardian.com/sport/rss", "lean": "left"},
     {"name": "MSNBC", "url": "https://www.msnbc.com/feeds/latest", "lean": "left"},
     {"name": "Washington Post", "url": "https://feeds.washingtonpost.com/rss/politics", "lean": "left"},
+    {"name": "WaPo Business", "url": "https://feeds.washingtonpost.com/rss/business", "lean": "left"},
     {"name": "NY Times", "url": "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", "lean": "left"},
+    {"name": "NY Times Tech", "url": "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml", "lean": "left"},
+    {"name": "NY Times Science", "url": "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml", "lean": "left"},
+    {"name": "NY Times Sports", "url": "https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml", "lean": "left"},
     {"name": "Vox", "url": "https://www.vox.com/rss/index.xml", "lean": "left"},
     {"name": "HuffPost", "url": "https://www.huffpost.com/section/politics/feed", "lean": "left"},
     {"name": "Slate", "url": "https://slate.com/feeds/all.rss", "lean": "left"},
+    {"name": "The Atlantic", "url": "https://www.theatlantic.com/feed/all/", "lean": "left"},
+    {"name": "Salon", "url": "https://www.salon.com/feed/", "lean": "left"},
 
     # === Right-leaning ===
     {"name": "Fox News", "url": "https://moxie.foxnews.com/google-publisher/politics.xml", "lean": "right"},
+    {"name": "Fox Business", "url": "https://moxie.foxnews.com/google-publisher/business.xml", "lean": "right"},
+    {"name": "Fox Sports", "url": "https://moxie.foxnews.com/google-publisher/sports.xml", "lean": "right"},
+    {"name": "Fox Tech", "url": "https://moxie.foxnews.com/google-publisher/tech.xml", "lean": "right"},
     {"name": "NY Post", "url": "https://nypost.com/news/feed/", "lean": "right"},
+    {"name": "NY Post Sports", "url": "https://nypost.com/sports/feed/", "lean": "right"},
     {"name": "Washington Times", "url": "https://www.washingtontimes.com/rss/headlines/news/politics/", "lean": "right"},
     {"name": "Daily Wire", "url": "https://www.dailywire.com/feeds/rss.xml", "lean": "right"},
     {"name": "Breitbart", "url": "https://feeds.feedburner.com/breitbart", "lean": "right"},
     {"name": "The Federalist", "url": "https://thefederalist.com/feed/", "lean": "right"},
     {"name": "National Review", "url": "https://www.nationalreview.com/feed/", "lean": "right"},
     {"name": "Washington Examiner", "url": "https://www.washingtonexaminer.com/feed", "lean": "right"},
+    {"name": "Daily Caller", "url": "https://dailycaller.com/feed/", "lean": "right"},
+    {"name": "Newsmax", "url": "https://www.newsmax.com/rss/Newsfront/1/", "lean": "right"},
 
     # === International ===
     {"name": "BBC", "url": "https://feeds.bbci.co.uk/news/world/rss.xml", "lean": "international"},
+    {"name": "BBC Tech", "url": "https://feeds.bbci.co.uk/news/technology/rss.xml", "lean": "international"},
+    {"name": "BBC Science", "url": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", "lean": "international"},
+    {"name": "BBC Sports", "url": "https://feeds.bbci.co.uk/sport/rss.xml", "lean": "international"},
     {"name": "Al Jazeera", "url": "https://www.aljazeera.com/xml/rss/all.xml", "lean": "international"},
     {"name": "DW News", "url": "https://rss.dw.com/rdf/rss-en-all", "lean": "international"},
     {"name": "France24", "url": "https://www.france24.com/en/rss", "lean": "international"},
     {"name": "The Economist", "url": "https://www.economist.com/united-states/rss.xml", "lean": "international"},
     {"name": "Sky News", "url": "https://feeds.skynews.com/feeds/rss/world.xml", "lean": "international"},
+    {"name": "ABC Australia", "url": "https://www.abc.net.au/news/feed/51120/rss.xml", "lean": "international"},
+    {"name": "Japan Times", "url": "https://www.japantimes.co.jp/feed/", "lean": "international"},
+
+    # === Tech Focused ===
+    {"name": "TechCrunch", "url": "https://techcrunch.com/feed/", "lean": "center"},
+    {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/index", "lean": "center"},
+    {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "lean": "center"},
+    {"name": "Wired", "url": "https://www.wired.com/feed/rss", "lean": "center"},
+    {"name": "Engadget", "url": "https://www.engadget.com/rss.xml", "lean": "center"},
+    {"name": "CNET", "url": "https://www.cnet.com/rss/news/", "lean": "center"},
+
+    # === Business / Economy ===
+    {"name": "CNBC", "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html", "lean": "center"},
+    {"name": "Bloomberg", "url": "https://feeds.bloomberg.com/markets/news.rss", "lean": "center"},
+    {"name": "MarketWatch", "url": "https://feeds.marketwatch.com/marketwatch/topstories/", "lean": "center"},
+    {"name": "Financial Times", "url": "https://www.ft.com/rss/home", "lean": "international"},
+    {"name": "Business Insider", "url": "https://www.businessinsider.com/rss", "lean": "center"},
+
+    # === Sports ===
+    {"name": "ESPN", "url": "https://www.espn.com/espn/rss/news", "lean": "center"},
+    {"name": "ESPN NFL", "url": "https://www.espn.com/espn/rss/nfl/news", "lean": "center"},
+    {"name": "ESPN NBA", "url": "https://www.espn.com/espn/rss/nba/news", "lean": "center"},
+    {"name": "CBS Sports", "url": "https://www.cbssports.com/rss/headlines/", "lean": "center"},
+    {"name": "Bleacher Report", "url": "https://bleacherreport.com/articles/feed", "lean": "center"},
+    {"name": "Sports Illustrated", "url": "https://www.si.com/rss/si_topstories.rss", "lean": "center"},
+
+    # === Science / Health ===
+    {"name": "Science Daily", "url": "https://www.sciencedaily.com/rss/all.xml", "lean": "center"},
+    {"name": "Live Science", "url": "https://www.livescience.com/feeds/all", "lean": "center"},
+    {"name": "Space.com", "url": "https://www.space.com/feeds/all", "lean": "center"},
+    {"name": "Scientific American", "url": "http://rss.sciam.com/ScientificAmerican-Global", "lean": "center"},
+    {"name": "Stat News", "url": "https://www.statnews.com/feed/", "lean": "center"},
+
+    # === Entertainment / Culture ===
+    {"name": "Variety", "url": "https://variety.com/feed/", "lean": "center"},
+    {"name": "Rolling Stone", "url": "https://www.rollingstone.com/feed/", "lean": "left"},
+    {"name": "Entertainment Weekly", "url": "https://ew.com/feed/", "lean": "center"},
+    {"name": "Deadline", "url": "https://deadline.com/feed/", "lean": "center"},
+    {"name": "Hollywood Reporter", "url": "https://www.hollywoodreporter.com/feed/", "lean": "center"},
 ]
 
 # =============================================================================
