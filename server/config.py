@@ -4,6 +4,13 @@ Lucid - Central Configuration
 All configuration variables in one place. Edit these to customize behavior.
 """
 
+# Load .env file if present (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, skip
+
 # =============================================================================
 # NEWS SOURCES CONFIG
 # =============================================================================
@@ -125,7 +132,7 @@ NEWS_SOURCES = [
 # Cosine similarity threshold for clustering (0.0 - 1.0)
 # Higher = stricter matching, fewer clusters
 # Lower = looser matching, more articles grouped together
-SIMILARITY_THRESHOLD = 0.45  # Lower threshold to catch differently-worded coverage
+SIMILARITY_THRESHOLD = 0.62  # Higher threshold to prevent unrelated stories merging
 
 # Minimum number of different sources required for a story to be included
 # Higher = only stories covered by multiple outlets (more significant)
