@@ -149,19 +149,20 @@ def init_database():
             )
         """)
 
-        # Indexes
+        # Migration: Add category column if it doesn't exist (must run before index creation)
+        try:
+            cursor.execute("SELECT category FROM stories LIMIT 1")
+        except (sqlite3.OperationalError, Exception) as e:
+            if 'category' in str(e).lower() or 'no such column' in str(e).lower():
+                print("[DATABASE] Adding category column to stories table...")
+                cursor.execute("ALTER TABLE stories ADD COLUMN category TEXT DEFAULT 'other'")
+
+        # Indexes (after migrations)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_created ON articles(created_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stories_created ON stories(created_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stories_category ON stories(category)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_story_sources_story ON story_sources(story_id)")
-
-        # Migration: Add category column if it doesn't exist
-        try:
-            cursor.execute("SELECT category FROM stories LIMIT 1")
-        except sqlite3.OperationalError:
-            print("[DATABASE] Adding category column to stories table...")
-            cursor.execute("ALTER TABLE stories ADD COLUMN category TEXT DEFAULT 'other'")
 
     _initialized = True
     print("[DATABASE] Initialized successfully")
