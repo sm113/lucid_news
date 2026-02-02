@@ -1,5 +1,11 @@
 {
   "appId": "com.lucid.app",
   "appName": "Lucid",
-  "webDir": "static"
+  "webDir": "static",
+  "ios": {
+    "path": "mobile/ios"
+  },
+  "android": {
+    "path": "mobile/android"
+  }
 }

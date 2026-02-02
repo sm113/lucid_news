@@ -17,8 +17,8 @@ services:
     # Build settings - lightweight deps only (embeddings via Jina API)
     buildCommand: pip install -r requirements.txt
 
-    # Start command - runs pipeline if needed, then starts gunicorn
-    startCommand: python start.py
+    # Start command - runs gunicorn with scheduler
+    startCommand: python main.py --deploy
 
     # Environment variables
     envVars:

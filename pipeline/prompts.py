@@ -17,7 +17,7 @@ TIPS FOR OPTIMIZATION:
 #          generates a comprehensive, neutral news summary with framing analysis.
 #
 # INPUT: A formatted list of articles with source name, political lean, headline, and content
-# OUTPUT: JSON object with headline, consensus, framing analysis, and key differences
+# OUTPUT: JSON object with headline, consensus, framing analysis, key differences, and category
 #
 # TOKENS: This prompt + articles typically uses 2000-8000 tokens depending on cluster size
 # =============================================================================
@@ -68,7 +68,42 @@ Return a valid JSON object with the following fields:
 
    This section should help readers understand potential blind spots in any single source.
 
+7. "category": Classify this story into ONE of these categories based on its primary subject matter:
+   - "politics" - US politics, elections, policy, government, legislation, political parties
+   - "economy" - Markets, business, finance, trade, employment, inflation, banking
+   - "tech" - Technology, AI, startups, social media, cybersecurity, software, hardware
+   - "sports" - All sports coverage, athletes, teams, leagues, competitions
+   - "culture" - Entertainment, movies, music, TV, celebrities, pop culture, arts
+   - "world" - International news, foreign affairs, diplomacy, global events (non-US focused)
+   - "science" - Science, health, medicine, climate, environment, research, space
+   - "other" - Only if it truly doesn't fit any category above
+
+   Choose the SINGLE most appropriate category. If a story spans multiple areas, pick the dominant theme.
+
 Output ONLY the JSON object. No preamble or explanation."""
+
+
+# =============================================================================
+# CATEGORY CLASSIFICATION PROMPT (for migration)
+# =============================================================================
+# Used to classify existing stories that don't have categories
+
+CATEGORY_PROMPT = """Classify this news story into ONE category based on its headline and summary.
+
+Headline: {headline}
+Summary: {consensus}
+
+Categories:
+- "politics" - US politics, elections, policy, government, legislation
+- "economy" - Markets, business, finance, trade, employment
+- "tech" - Technology, AI, startups, social media, cybersecurity
+- "sports" - All sports coverage, athletes, teams, competitions
+- "culture" - Entertainment, movies, music, TV, celebrities, arts
+- "world" - International news, foreign affairs, diplomacy (non-US focused)
+- "science" - Science, health, medicine, climate, environment, research
+- "other" - Only if it truly doesn't fit any category above
+
+Return ONLY the category name as a single word (e.g., "politics"). No explanation."""
 
 
 # =============================================================================

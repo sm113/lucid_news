@@ -14,7 +14,7 @@ from contextlib import contextmanager
 # =============================================================================
 # DATABASE CONFIG
 # =============================================================================
-from config import DATABASE_PATH
+from server.config import DATABASE_PATH, VALID_CATEGORIES
 
 # Turso configuration (set these env vars for production)
 TURSO_DATABASE_URL = os.environ.get('TURSO_DATABASE_URL')
@@ -132,6 +132,7 @@ def init_database():
                 center_framing TEXT,
                 key_differences TEXT,
                 source_count INTEGER DEFAULT 0,
+                category TEXT DEFAULT 'other',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -152,7 +153,15 @@ def init_database():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_created ON articles(created_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_url ON articles(url)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stories_created ON stories(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_stories_category ON stories(category)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_story_sources_story ON story_sources(story_id)")
+
+        # Migration: Add category column if it doesn't exist
+        try:
+            cursor.execute("SELECT category FROM stories LIMIT 1")
+        except sqlite3.OperationalError:
+            print("[DATABASE] Adding category column to stories table...")
+            cursor.execute("ALTER TABLE stories ADD COLUMN category TEXT DEFAULT 'other'")
 
     _initialized = True
     print("[DATABASE] Initialized successfully")
@@ -264,9 +273,14 @@ def insert_story(
     right_framing: str,
     center_framing: str,
     key_differences: str,
-    article_ids: List[int]
+    article_ids: List[int],
+    category: str = "other"
 ) -> Optional[int]:
     """Insert a new synthesized story with its source articles."""
+    # Validate category
+    if category not in VALID_CATEGORIES:
+        category = "other"
+
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -274,10 +288,10 @@ def insert_story(
 
             cursor.execute("""
                 INSERT INTO stories (synthesized_headline, consensus, left_framing, right_framing,
-                                     center_framing, key_differences, source_count, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     center_framing, key_differences, source_count, category, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (synthesized_headline, consensus, left_framing, right_framing,
-                  center_framing, key_differences, len(article_ids), now, now))
+                  center_framing, key_differences, len(article_ids), category, now, now))
 
             story_id = cursor.lastrowid
 
@@ -293,15 +307,22 @@ def insert_story(
         return None
 
 
-def get_stories(limit: int = 20, offset: int = 0) -> List[Dict]:
-    """Get synthesized stories sorted by recency."""
+def get_stories(limit: int = 20, offset: int = 0, category: str = None) -> List[Dict]:
+    """Get synthesized stories sorted by recency, optionally filtered by category."""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id, synthesized_headline, consensus, left_framing, right_framing,
-                   center_framing, key_differences, source_count, created_at, updated_at
-            FROM stories ORDER BY created_at DESC LIMIT ? OFFSET ?
-        """, (limit, offset))
+        if category and category != "all":
+            cursor.execute("""
+                SELECT id, synthesized_headline, consensus, left_framing, right_framing,
+                       center_framing, key_differences, source_count, category, created_at, updated_at
+                FROM stories WHERE category = ? ORDER BY created_at DESC LIMIT ? OFFSET ?
+            """, (category, limit, offset))
+        else:
+            cursor.execute("""
+                SELECT id, synthesized_headline, consensus, left_framing, right_framing,
+                       center_framing, key_differences, source_count, category, created_at, updated_at
+                FROM stories ORDER BY created_at DESC LIMIT ? OFFSET ?
+            """, (limit, offset))
         return _fetchall_dicts(cursor)
 
 
@@ -311,7 +332,7 @@ def get_story_with_sources(story_id: int) -> Optional[Dict]:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, synthesized_headline, consensus, left_framing, right_framing,
-                   center_framing, key_differences, source_count, created_at, updated_at
+                   center_framing, key_differences, source_count, category, created_at, updated_at
             FROM stories WHERE id = ?
         """, (story_id,))
         story = _fetchone_dict(cursor)
@@ -329,11 +350,14 @@ def get_story_with_sources(story_id: int) -> Optional[Dict]:
         return story
 
 
-def get_stories_count() -> int:
-    """Get total number of stories."""
+def get_stories_count(category: str = None) -> int:
+    """Get total number of stories, optionally filtered by category."""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM stories")
+        if category and category != "all":
+            cursor.execute("SELECT COUNT(*) FROM stories WHERE category = ?", (category,))
+        else:
+            cursor.execute("SELECT COUNT(*) FROM stories")
         return cursor.fetchone()[0]
 
 
@@ -348,6 +372,38 @@ def get_sources_for_story(story_id: int) -> List[Dict]:
             WHERE ss.story_id = ?
             ORDER BY a.source_lean, a.source_name
         """, (story_id,))
+        return _fetchall_dicts(cursor)
+
+
+def update_story_category(story_id: int, category: str) -> bool:
+    """Update the category of an existing story."""
+    if category not in VALID_CATEGORIES:
+        category = "other"
+
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE stories SET category = ?, updated_at = ? WHERE id = ?",
+                (category, datetime.now().isoformat(), story_id)
+            )
+            return cursor.rowcount > 0
+    except Exception as e:
+        print(f"[DATABASE] Error updating story category: {e}")
+        return False
+
+
+def get_stories_without_category(limit: int = 100) -> List[Dict]:
+    """Get stories that don't have a category or have 'other' as category."""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, synthesized_headline, consensus
+            FROM stories
+            WHERE category IS NULL OR category = 'other'
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (limit,))
         return _fetchall_dicts(cursor)
 
 

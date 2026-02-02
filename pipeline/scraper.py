@@ -23,14 +23,14 @@ except ImportError:
 # =============================================================================
 # SCRAPER CONFIG
 # =============================================================================
-from config import (
+from server.config import (
     NEWS_SOURCES,
     REQUEST_TIMEOUT,
     USER_AGENT,
     REQUEST_DELAY,
     MAX_ARTICLE_AGE_HOURS
 )
-import database
+from server import database
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -54,7 +54,7 @@ def parse_date(date_str: str) -> Optional[str]:
         return dt.isoformat()
     except (TypeError, ValueError):
         pass
-    
+
     # Common fallback formats
     formats = ["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d %H:%M:%S"]
     for fmt in formats:
@@ -93,13 +93,13 @@ def fetch_full_article_text(url: str, rss_description: str = "") -> str:
         article = Article(url)
         article.download()
         article.parse()
-        
+
         text = article.text.strip()
-        
+
         # If scraper returned very little text, it might be a paywall/error
         if len(text) < 200:
             return clean_text(rss_description)
-            
+
         return text
     except Exception as e:
         # print(f"    Failed to scrape {url}: {e} (using RSS summary)")
@@ -143,9 +143,9 @@ def scrape_source(source: Dict) -> int:
                 continue
 
             # Check if URL exists before doing the heavy scraping work
-            # (Note: You might need a check_if_exists function in database.py 
+            # (Note: You might need a check_if_exists function in database.py
             # to avoid scraping body text for articles we already have)
-            
+
             published_at = parse_date(entry.get('published') or entry.get('updated'))
             if not is_article_recent(published_at):
                 continue
@@ -156,7 +156,7 @@ def scrape_source(source: Dict) -> int:
             # --- KEY CHANGE: Fetch Full Text ---
             # This slows down scraping but vastly improves analysis quality
             full_text = fetch_full_article_text(article_url, rss_summary)
-            
+
             # Truncate if absolutely massive to save DB space/LLM tokens
             # Keep more text for deeper analysis
             if len(full_text) > 12000:
@@ -168,7 +168,7 @@ def scrape_source(source: Dict) -> int:
                 source_name=name,
                 source_lean=lean,
                 headline=headline,
-                lede=full_text, 
+                lede=full_text,
                 url=article_url,
                 published_at=published_at
             )
@@ -176,7 +176,7 @@ def scrape_source(source: Dict) -> int:
             if article_id:
                 new_count += 1
                 # Politeness delay between articles from same source
-                time.sleep(0.5) 
+                time.sleep(0.5)
 
         except Exception as e:
             print(f"  Error processing entry: {e}")

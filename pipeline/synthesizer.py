@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 # =============================================================================
 # SYNTHESIS CONFIG
 # =============================================================================
-from config import (
+from server.config import (
     LLM_MODEL,
     LLM_PROVIDER,
     GROQ_API_KEY,
@@ -21,11 +21,12 @@ from config import (
     MAX_TOKENS,
     TEMPERATURE,
     LLM_MAX_RETRIES,
-    LLM_RETRY_DELAY
+    LLM_RETRY_DELAY,
+    VALID_CATEGORIES
 )
-from prompts import SYNTHESIS_PROMPT
-import database
-import clusterer
+from pipeline.prompts import SYNTHESIS_PROMPT
+from server import database
+from pipeline import clusterer
 
 def format_articles_for_prompt(articles: List[Dict]) -> str:
     """Format articles for inclusion in the LLM prompt."""
@@ -143,10 +144,11 @@ def clean_json_response(response: str) -> str:
 def parse_synthesis_response(response: str) -> Dict:
     """Parse JSON response from LLM."""
     default_result = {
-        'headline': '', 'consensus': '', 'left_framing': '', 
-        'right_framing': '', 'center_framing': '', 'key_differences': ''
+        'headline': '', 'consensus': '', 'left_framing': '',
+        'right_framing': '', 'center_framing': '', 'key_differences': '',
+        'category': 'other'
     }
-    
+
     if not response:
         return default_result
 
@@ -154,10 +156,18 @@ def parse_synthesis_response(response: str) -> Dict:
         # Clean potential markdown
         clean_res = clean_json_response(response)
         data = json.loads(clean_res)
-        
+
+        # Validate and normalize category
+        category = data.get('category', 'other')
+        if isinstance(category, str):
+            category = category.lower().strip()
+        if category not in VALID_CATEGORIES:
+            category = 'other'
+        data['category'] = category
+
         # Merge with default to ensure all keys exist
         return {**default_result, **data}
-        
+
     except json.JSONDecodeError as e:
         print(f"  Error parsing JSON from LLM: {e}")
         print(f"  Raw response: {response[:100]}...")
@@ -187,12 +197,12 @@ def synthesize_and_store_cluster(articles: List[Dict]) -> Optional[int]:
 
     # Parse response
     synthesis = parse_synthesis_response(response)
-    
+
     if not synthesis.get('headline'):
         print("  Failed to generate valid synthesis")
         return None
 
-    # Store in database
+    # Store in database with category
     story_id = database.insert_story(
         synthesized_headline=synthesis['headline'],
         consensus=synthesis['consensus'],
@@ -200,15 +210,16 @@ def synthesize_and_store_cluster(articles: List[Dict]) -> Optional[int]:
         right_framing=synthesis['right_framing'],
         center_framing=synthesis['center_framing'],
         key_differences=synthesis['key_differences'],
-        article_ids=[a['id'] for a in articles]
+        article_ids=[a['id'] for a in articles],
+        category=synthesis['category']
     )
 
-    print(f"  Created story {story_id}: {synthesis['headline'][:50]}...")
+    print(f"  Created story {story_id}: {synthesis['headline'][:50]}... [{synthesis['category']}]")
     return story_id
 
 def run_synthesis(clusters=None) -> List[int]:
     print("\n" + "="*60 + "\nLUCID - JSON Synthesis\n" + "="*60)
-    
+
     if clusters is None:
         clusters = clusterer.run_clustering()
 

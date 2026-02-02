@@ -14,13 +14,13 @@ from typing import List, Dict, Optional
 # =============================================================================
 # CLUSTERING CONFIG
 # =============================================================================
-from config import (
+from server.config import (
     SIMILARITY_THRESHOLD,
     MIN_SOURCES_FOR_STORY,
     MAX_ARTICLES_FOR_CLUSTERING,
     CLUSTERING_WINDOW_HOURS
 )
-import database
+from server import database
 
 # Jina AI API config (free tier: 1M tokens/month)
 JINA_API_KEY = os.environ.get('JINA_API_KEY', '')

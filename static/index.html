@@ -47,6 +47,20 @@
         </div>
     </header>
 
+    <!-- Category Navigation Bar -->
+    <nav class="category-bar" id="categoryBar">
+        <div class="category-tabs" id="categoryTabs">
+            <button class="category-tab active" data-category="all">ALL</button>
+            <button class="category-tab" data-category="politics">POLITICS</button>
+            <button class="category-tab" data-category="economy">ECONOMY</button>
+            <button class="category-tab" data-category="tech">TECH</button>
+            <button class="category-tab" data-category="sports">SPORTS</button>
+            <button class="category-tab" data-category="culture">CULTURE</button>
+            <button class="category-tab" data-category="world">WORLD</button>
+            <button class="category-tab" data-category="science">SCIENCE</button>
+        </div>
+    </nav>
+
     <main class="bench" id="mainContent">
         <!-- Loading state shown on startup -->
         <div class="empty-state" id="loadingState">
@@ -80,6 +94,12 @@
         const CACHE_KEY = 'lucid_stories_cache';
         const CACHE_TIME_KEY = 'lucid_cache_time';
 
+        // Categories
+        const CATEGORIES = ['all', 'politics', 'economy', 'tech', 'sports', 'culture', 'world', 'science'];
+        let currentCategory = 'all';
+        let categoryFeeds = {}; // Cache feeds per category
+        let categoryScrollPositions = {}; // Store scroll position per category
+
         let currentStory = null;
         let scrollPosition = 0;
         let currentPage = 1;
@@ -101,6 +121,207 @@
                 window.Capacitor.Plugins.Haptics.impact({ style });
             } else if (navigator.vibrate) {
                 navigator.vibrate(style === 'heavy' ? 20 : 10);
+            }
+        }
+
+        // ===========================================
+        // CATEGORY NAVIGATION
+        // ===========================================
+        function initCategoryTabs() {
+            const tabs = document.querySelectorAll('.category-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const category = tab.dataset.category;
+                    switchCategory(category);
+                });
+            });
+        }
+
+        async function switchCategory(category) {
+            if (category === currentCategory || isLoading) return;
+
+            haptic('light');
+
+            // Save current scroll position
+            categoryScrollPositions[currentCategory] = window.scrollY;
+
+            // Update active tab
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.category === category);
+            });
+
+            // Scroll active tab into view
+            const activeTab = document.querySelector(`.category-tab[data-category="${category}"]`);
+            if (activeTab) {
+                activeTab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+
+            currentCategory = category;
+
+            // Check if we have cached data for this category
+            if (categoryFeeds[category] && categoryFeeds[category].length > 0) {
+                // Use cached data
+                renderCategoryFeed(categoryFeeds[category]);
+                // Restore scroll position
+                setTimeout(() => {
+                    window.scrollTo(0, categoryScrollPositions[category] || 0);
+                }, 50);
+            } else {
+                // Fetch new data
+                await fetchCategoryFeed(category);
+            }
+        }
+
+        async function fetchCategoryFeed(category) {
+            isLoading = true;
+            const feed = document.getElementById('storyFeed');
+            if (feed) feed.innerHTML = '<div class="category-loading"><div class="loading-spinner"></div></div>';
+
+            try {
+                const url = category === 'all'
+                    ? `${SERVER_URL}/api/stories?page=1&limit=20`
+                    : `${SERVER_URL}/api/stories?page=1&limit=20&category=${category}`;
+
+                const response = await fetch(url, { cache: 'no-store' });
+                const data = await response.json();
+
+                // Cache the data
+                categoryFeeds[category] = data.stories;
+
+                renderCategoryFeed(data.stories);
+
+                // Update pagination state
+                loadedStoryIds.clear();
+                data.stories.forEach(s => loadedStoryIds.add(String(s.id)));
+                currentPage = 1;
+                hasMoreStories = loadedStoryIds.size < data.total;
+
+                const loadMore = document.getElementById('loadMore');
+                const endOfFeed = document.getElementById('endOfFeed');
+                if (loadMore) loadMore.style.display = hasMoreStories ? '' : 'none';
+                if (endOfFeed) endOfFeed.style.display = hasMoreStories ? 'none' : 'flex';
+
+            } catch (e) {
+                console.error('Failed to fetch category feed:', e);
+                if (feed) feed.innerHTML = '<div class="category-error">Failed to load stories</div>';
+            }
+
+            isLoading = false;
+        }
+
+        function renderCategoryFeed(stories) {
+            const feed = document.getElementById('storyFeed');
+            if (!feed) return;
+
+            feed.innerHTML = '';
+            loadedStoryIds.clear();
+
+            stories.forEach((story, index) => {
+                if (loadedStoryIds.has(String(story.id))) return;
+                loadedStoryIds.add(String(story.id));
+
+                const article = document.createElement('article');
+                const isBreaking = index < 2;
+                article.className = `newspaper${isBreaking ? ' breaking' : ''}`;
+                article.setAttribute('data-story-id', story.id);
+                article.setAttribute('data-relevance', story.relevance_score || 0);
+                article.onclick = () => openStory(story.id);
+
+                const sourceDots = (story.sources || []).slice(0, 8).map(s =>
+                    `<span class="source-dot ${s.source_lean}" title="${s.source_name}"></span>`
+                ).join('');
+
+                const categoryBadge = story.category && story.category !== 'other'
+                    ? `<span class="category-badge">${story.category.toUpperCase()}</span>`
+                    : '';
+
+                article.innerHTML = `
+                    <div class="newspaper-meta">
+                        <span class="relevance-score" title="Relevance score">${Math.round(story.relevance_score || 0)}</span>
+                        <div class="newspaper-sources">${sourceDots}</div>
+                    </div>
+                    <div class="newspaper-date">${story.time_ago} / ${story.source_count} sources ${categoryBadge}</div>
+                    <h2 class="newspaper-headline">${story.synthesized_headline}</h2>
+                `;
+
+                feed.appendChild(article);
+                revealObserver.observe(article);
+                initCardSwipe(article);
+            });
+        }
+
+        // ===========================================
+        // EDGE SWIPE NAVIGATION
+        // ===========================================
+        let edgeSwipeStartX = 0;
+        let edgeSwipeStartY = 0;
+        let isEdgeSwipe = false;
+        const EDGE_THRESHOLD = 30; // pixels from screen edge
+        const SWIPE_THRESHOLD = 80; // minimum swipe distance
+
+        function initEdgeSwipe() {
+            document.addEventListener('touchstart', handleEdgeTouchStart, { passive: true });
+            document.addEventListener('touchmove', handleEdgeTouchMove, { passive: false });
+            document.addEventListener('touchend', handleEdgeTouchEnd, { passive: true });
+        }
+
+        function handleEdgeTouchStart(e) {
+            // Don't handle edge swipes when modal is open
+            if (document.body.classList.contains('modal-open')) return;
+
+            const touch = e.touches[0];
+            edgeSwipeStartX = touch.clientX;
+            edgeSwipeStartY = touch.clientY;
+
+            // Check if touch starts near screen edge
+            const isLeftEdge = edgeSwipeStartX < EDGE_THRESHOLD;
+            const isRightEdge = edgeSwipeStartX > window.innerWidth - EDGE_THRESHOLD;
+
+            isEdgeSwipe = isLeftEdge || isRightEdge;
+        }
+
+        function handleEdgeTouchMove(e) {
+            if (!isEdgeSwipe) return;
+
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - edgeSwipeStartX;
+            const deltaY = touch.clientY - edgeSwipeStartY;
+
+            // If vertical movement is dominant, cancel edge swipe
+            if (Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+                isEdgeSwipe = false;
+                return;
+            }
+
+            // Prevent scrolling during edge swipe
+            if (Math.abs(deltaX) > 20) {
+                e.preventDefault();
+            }
+        }
+
+        function handleEdgeTouchEnd(e) {
+            if (!isEdgeSwipe) return;
+
+            const touch = e.changedTouches[0];
+            const deltaX = touch.clientX - edgeSwipeStartX;
+
+            isEdgeSwipe = false;
+
+            // Check if swipe was long enough
+            if (Math.abs(deltaX) < SWIPE_THRESHOLD) return;
+
+            const currentIndex = CATEGORIES.indexOf(currentCategory);
+
+            if (deltaX > 0 && edgeSwipeStartX < EDGE_THRESHOLD) {
+                // Swiped right from left edge -> previous category
+                if (currentIndex > 0) {
+                    switchCategory(CATEGORIES[currentIndex - 1]);
+                }
+            } else if (deltaX < 0 && edgeSwipeStartX > window.innerWidth - EDGE_THRESHOLD) {
+                // Swiped left from right edge -> next category
+                if (currentIndex < CATEGORIES.length - 1) {
+                    switchCategory(CATEGORIES[currentIndex + 1]);
+                }
             }
         }
 
@@ -169,11 +390,18 @@
                 document.getElementById('sourceCount').textContent =
                     `${statsData.unique_sources} SOURCES`;
 
+                // Cache the initial feed
+                categoryFeeds['all'] = storiesData.stories;
+
                 // Transition to feed
                 showFeed(storiesData);
 
                 // Cache for next launch
                 cacheStories(storiesData.stories);
+
+                // Initialize category tabs and edge swipe
+                initCategoryTabs();
+                initEdgeSwipe();
 
                 appInitialized = true;
                 isInitializing = false;
@@ -311,7 +539,11 @@
 
             try {
                 currentPage++;
-                const response = await fetch(`${SERVER_URL}/api/stories?page=${currentPage}&limit=10`);
+                const url = currentCategory === 'all'
+                    ? `${SERVER_URL}/api/stories?page=${currentPage}&limit=10`
+                    : `${SERVER_URL}/api/stories?page=${currentPage}&limit=10&category=${currentCategory}`;
+
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.stories.length === 0) {
@@ -320,6 +552,12 @@
                     document.getElementById('endOfFeed').style.display = 'flex';
                 } else {
                     appendStories(data.stories);
+
+                    // Update category cache
+                    if (categoryFeeds[currentCategory]) {
+                        categoryFeeds[currentCategory] = [...categoryFeeds[currentCategory], ...data.stories];
+                    }
+
                     if (loadedStoryIds.size >= data.total) {
                         hasMoreStories = false;
                         document.getElementById('loadMore').style.display = 'none';
@@ -354,12 +592,16 @@
                     `<span class="source-dot ${s.source_lean}" title="${s.source_name}"></span>`
                 ).join('');
 
+                const categoryBadge = story.category && story.category !== 'other'
+                    ? `<span class="category-badge">${story.category.toUpperCase()}</span>`
+                    : '';
+
                 article.innerHTML = `
                     <div class="newspaper-meta">
                         <span class="relevance-score" title="Relevance score">${Math.round(story.relevance_score || 0)}</span>
                         <div class="newspaper-sources">${sourceDots}</div>
                     </div>
-                    <div class="newspaper-date">${story.time_ago} / ${story.source_count} sources</div>
+                    <div class="newspaper-date">${story.time_ago} / ${story.source_count} sources ${categoryBadge}</div>
                     <h2 class="newspaper-headline">${story.synthesized_headline}</h2>
                 `;
 
@@ -409,8 +651,15 @@
             let isHorizontalSwipe = false;
 
             card.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
+                const touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+
+                // Don't start card swipe if it's an edge swipe
+                const isLeftEdge = startX < EDGE_THRESHOLD;
+                const isRightEdge = startX > window.innerWidth - EDGE_THRESHOLD;
+                if (isLeftEdge || isRightEdge) return;
+
                 currentX = 0;
                 isDragging = true;
                 isHorizontalSwipe = false;
@@ -519,9 +768,12 @@
         function renderExpandedStory(story) {
             const sources = story.sources || [];
             const timestamp = new Date().toISOString().split('T')[0];
+            const categoryLabel = story.category && story.category !== 'other'
+                ? `<span class="story-category">${story.category.toUpperCase()}</span>`
+                : '';
 
             document.getElementById('expandedContent').innerHTML = `
-                <div class="expanded-masthead">Lucid</div>
+                <div class="expanded-masthead">Lucid ${categoryLabel}</div>
                 <div class="expanded-date">${timestamp} / ${sources.length} sources analyzed</div>
 
                 <h1 class="expanded-headline">${story.synthesized_headline}</h1>
@@ -601,9 +853,16 @@
             btn.textContent = 'SYNCING...';
 
             try {
+                // Clear category cache
+                categoryFeeds = {};
+
                 // Just fetch latest data from database (pipeline runs via scheduler)
+                const url = currentCategory === 'all'
+                    ? `${SERVER_URL}/api/stories?page=1&limit=20`
+                    : `${SERVER_URL}/api/stories?page=1&limit=20&category=${currentCategory}`;
+
                 const [storiesRes, statsRes] = await Promise.all([
-                    fetch(SERVER_URL + '/api/stories?page=1&limit=20', { cache: 'no-store' }),
+                    fetch(url, { cache: 'no-store' }),
                     fetch(SERVER_URL + '/api/stats', { cache: 'no-store' })
                 ]);
 
@@ -628,6 +887,8 @@
                 if (loadMore) loadMore.style.display = '';
                 if (endOfFeed) endOfFeed.style.display = 'none';
 
+                // Cache and render
+                categoryFeeds[currentCategory] = storiesData.stories;
                 appendStories(storiesData.stories, true);
                 cacheStories(storiesData.stories);
 

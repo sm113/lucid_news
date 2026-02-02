@@ -10,17 +10,17 @@ from datetime import datetime
 import os
 import atexit
 
-from config import (
+from server.config import (
     FLASK_HOST, FLASK_PORT, FLASK_DEBUG, STORIES_PER_PAGE, REFRESH_INTERVAL_HOURS,
     RELEVANCE_WEIGHT_SOURCES, RELEVANCE_WEIGHT_DIVERSITY, RELEVANCE_WEIGHT_RECENCY, RELEVANCE_BASE_SCORE
 )
-import database
+from server import database
 
 # =============================================================================
 # FLASK APP SETUP
 # =============================================================================
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../static', static_url_path='')
 CORS(app)
 
 # =============================================================================
@@ -43,9 +43,9 @@ def run_pipeline_job(force_scrape: bool = False):
     print("[SCHEDULER] Starting smart pipeline run...")
 
     try:
-        import scraper
-        import clusterer
-        import synthesizer
+        from pipeline import scraper
+        from pipeline import clusterer
+        from pipeline import synthesizer
 
         # Check if we need to scrape
         recent_articles = database.get_articles_added_since(hours=2)
@@ -77,8 +77,8 @@ def run_quick_pipeline():
     """Quick pipeline that only does clustering/synthesis on existing articles."""
     print("[SCHEDULER] Running quick pipeline (clustering only)...")
     try:
-        import clusterer
-        import synthesizer
+        from pipeline import clusterer
+        from pipeline import synthesizer
 
         if database.has_unclustered_articles():
             clusters = clusterer.run_clustering()
@@ -214,58 +214,26 @@ def calculate_relevance_score(story: dict, sources: list) -> int:
 
 @app.route('/')
 def index():
-    """Main feed page."""
-    page = request.args.get('page', 1, type=int)
-    offset = (page - 1) * STORIES_PER_PAGE
-
-    stories = database.get_stories(limit=STORIES_PER_PAGE, offset=offset)
-    total_stories = database.get_stories_count()
-    total_pages = (total_stories + STORIES_PER_PAGE - 1) // STORIES_PER_PAGE if total_stories > 0 else 1
-
-    for story in stories:
-        story['sources'] = database.get_sources_for_story(story['id'])
-        story['sources_grouped'] = group_sources_by_lean(story['sources'])
-        story['time_ago'] = format_timestamp(story['created_at'])
-        story['relevance_score'] = calculate_relevance_score(story, story['sources'])
-
-    # Sort by relevance score (highest first)
-    stories.sort(key=lambda s: s['relevance_score'], reverse=True)
-
-    stats = database.get_stats()
-    stats['last_updated'] = format_timestamp(stats.get('last_story_at'))
-
-    return render_template('index.html',
-                           stories=stories,
-                           page=page,
-                           total_pages=total_pages,
-                           stats=stats)
-
-
-@app.route('/story/<int:story_id>')
-def story_detail(story_id: int):
-    """Single story detail view."""
-    story = database.get_story_with_sources(story_id)
-    if not story:
-        return "Story not found", 404
-
-    story['sources_grouped'] = group_sources_by_lean(story['sources'])
-    story['time_ago'] = format_timestamp(story['created_at'])
-
-    return render_template('index.html',
-                           story=story,
-                           single_view=True,
-                           stats=database.get_stats())
+    """Serve the main SPA."""
+    return app.send_static_file('index.html')
 
 
 @app.route('/api/stories')
 def api_stories():
-    """API endpoint for stories."""
+    """API endpoint for stories with optional category filter."""
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', STORIES_PER_PAGE, type=int)
+    category = request.args.get('category', None, type=str)
     offset = (page - 1) * limit
 
+    # Normalize category
+    if category:
+        category = category.lower()
+        if category == 'all':
+            category = None
+
     # Get more stories than requested so we can sort by relevance, then paginate
-    all_stories = database.get_stories(limit=1000, offset=0)
+    all_stories = database.get_stories(limit=1000, offset=0, category=category)
     for story in all_stories:
         story['sources'] = database.get_sources_for_story(story['id'])
         story['time_ago'] = format_timestamp(story['created_at'])
@@ -280,7 +248,8 @@ def api_stories():
     return jsonify({
         'stories': stories,
         'page': page,
-        'total': database.get_stories_count()
+        'total': database.get_stories_count(category=category),
+        'category': category or 'all'
     })
 
 
@@ -377,8 +346,13 @@ def lean_dot(lean: str) -> str:
 # MAIN
 # =============================================================================
 
-if __name__ == '__main__':
+def main():
+    """Run the Flask application."""
     database.init_database()
     host = os.environ.get('HOST', FLASK_HOST)
     port = int(os.environ.get('PORT', FLASK_PORT))
     app.run(host=host, port=port, debug=FLASK_DEBUG)
+
+
+if __name__ == '__main__':
+    main()

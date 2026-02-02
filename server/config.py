@@ -16,8 +16,8 @@ All configuration variables in one place. Edit these to customize behavior.
 
 NEWS_SOURCES = [
     # === Wire Services / Center ===
-    {"name": "AP News", "url": "https://rsshub.app/apnews/topics/apf-topnews", "lean": "center"},
-    {"name": "Reuters", "url": "https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best", "lean": "center"},
+    {"name": "AP News", "url": "http://associated-press.s3-website-us-east-1.amazonaws.com/topnews.xml", "lean": "center"},
+    {"name": "Reuters", "url": "https://feeds.reuters.com/Reuters/worldNews", "lean": "center"},
     {"name": "PBS NewsHour", "url": "https://www.pbs.org/newshour/feeds/rss/headlines", "lean": "center"},
     {"name": "The Hill", "url": "https://thehill.com/feed/", "lean": "center"},
     {"name": "Axios", "url": "https://api.axios.com/feed/", "lean": "center"},
@@ -152,7 +152,7 @@ FLASK_DEBUG = True
 if os.path.exists("/data"):
     DATABASE_PATH = "/data/news_bench.db"
 else:
-    DATABASE_PATH = os.path.join(os.path.dirname(__file__), "news_bench.db")
+    DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "news_bench.db")
 
 # =============================================================================
 # SCRAPING CONFIG
@@ -170,3 +170,19 @@ REQUEST_DELAY = 1.0
 
 # Maximum age of articles to scrape (hours)
 MAX_ARTICLE_AGE_HOURS = 120  # 5 days for more comprehensive coverage
+
+# =============================================================================
+# CATEGORY CONFIG
+# =============================================================================
+# Valid story categories for classification
+
+VALID_CATEGORIES = [
+    "politics",   # US politics, elections, policy
+    "economy",    # Markets, business, finance
+    "tech",       # Technology, AI, startups
+    "sports",     # All sports coverage
+    "culture",    # Entertainment, pop culture, arts
+    "world",      # International news, foreign affairs
+    "science",    # Science, health, climate, environment
+    "other",      # Fallback for uncategorized stories
+]
